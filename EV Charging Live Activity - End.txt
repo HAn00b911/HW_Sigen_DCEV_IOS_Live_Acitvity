@@ -1,0 +1,38 @@
+alias: EV Charging Live Activity - End
+triggers:
+  - trigger: state
+    entity_id: sensor.sigen_inverter_dc_charger_running_state
+    from: Charging
+    not_to:
+      - unavailable
+      - unknown
+actions:
+  - variables:
+      soc: '{{ states(''sensor.sigen_inverter_dc_charger_vehicle_soc'') | int(0) }}'
+  - action: notify.mobile_app_##(phone name in home assistant)
+    data:
+      title: EV Charging
+      message: >
+        {{ 'Charge complete' if soc >= 99 else 'Charging stopped at ' ~ soc ~
+        '%' }}
+      data:
+        tag: ev-charging
+        live_update: true
+        critical_text: '{{ soc }}%'
+        progress: '{{ soc }}'
+        progress_max: 100
+        notification_icon: mdi:battery-charging
+        notification_icon_color: '#4CAF50'
+  - delay:
+      minutes: 5
+  - condition: not
+    conditions:
+      - condition: state
+        entity_id: sensor.sigen_inverter_dc_charger_running_state
+        state: Charging
+  - action: notify.mobile_app_##(phone name in home assistant)
+    data:
+      message: clear_notification
+      data:
+        tag: ev-charging
+mode: single

@@ -1,0 +1,37 @@
+alias: EV Charging Live Activity
+triggers:
+  - trigger: state
+    entity_id: sensor.sigen_inverter_dc_charger_running_state
+    to: Charging
+  - trigger: state
+    entity_id: sensor.sigen_inverter_dc_charger_vehicle_soc
+conditions:
+  - condition: state
+    entity_id: sensor.sigen_inverter_dc_charger_running_state
+    state: Charging
+  - condition: template
+    value_template: '{{ has_value(''sensor.sigen_inverter_dc_charger_vehicle_soc'') }}'
+actions:
+  - action: notify.mobile_app_##(phone name in home assistant)
+    data:
+      title: EV Charging
+      message: Charging · {{ remaining }}
+      data:
+        tag: ev-charging
+        live_update: true
+        critical_text: '{{ soc | round(0) | int }}%'
+        progress: '{{ soc | round(0) | int }}'
+        progress_max: 100
+        notification_icon: mdi:ev-station
+        notification_icon_color: '{{ ''#8BC34A'' if soc >= 70 else ''#4CAF50'' }}'
+mode: restart
+variables:
+  soc: '{{ states(''sensor.sigen_inverter_dc_charger_vehicle_soc'') | float(0) }}'
+  kw: '{{ states(''sensor.sigen_inverter_dc_charger_output_power'') | float(0) }}'
+  mins: |
+    {% if kw > 0.5 %}
+      {{ (((100 - soc) / 100 * 82.5) / kw * 60) | round(0) | int }}
+    {% else %}0{% endif %}
+  remaining: >
+    {% set m = mins | int %} {% if m <= 0 %}Calculating… {% elif m >= 60 %}{{ m
+    // 60 }}h {{ m % 60 }}m remaining {% else %}{{ m }} min remaining{% endif %}
